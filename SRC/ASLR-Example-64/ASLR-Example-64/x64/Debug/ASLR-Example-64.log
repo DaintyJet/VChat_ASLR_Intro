@@ -1,0 +1,9 @@
+﻿  main.c
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-64\ASLR-Example-64\main.c(35,7): warning C4047: '=': 'long' differs in levels of indirection from 'int (__cdecl *)(int,char **)'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-64\ASLR-Example-64\main.c(39,21): warning C4047: '=': 'char' differs in levels of indirection from 'char [2]'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-64\ASLR-Example-64\main.c(44,21): warning C4047: '=': 'char' differs in levels of indirection from 'char [2]'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-64\ASLR-Example-64\main.c(48,21): warning C4047: '=': 'char' differs in levels of indirection from 'char [2]'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-64\ASLR-Example-64\main.c(56,12): warning C4477: 'printf' : format string '%08p' requires an argument of type 'void *', but variadic argument 1 has type 'long'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-64\ASLR-Example-64\main.c(56,12): warning C4313: 'printf': '%p' in format string conflicts with argument 1 of type 'long'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-64\ASLR-Example-64\main.c(16,18): warning C4047: 'initializing': 'long *' differs in levels of indirection from 'int'
+  ASLR-Example-64.vcxproj -> D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-64\x64\Debug\ASLR-Example-64.exe

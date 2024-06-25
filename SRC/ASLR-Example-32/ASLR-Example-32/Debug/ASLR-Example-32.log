@@ -1,0 +1,6 @@
+﻿  main.c
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(27,21): warning C4047: '=': 'char' differs in levels of indirection from 'char [2]'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(32,21): warning C4047: '=': 'char' differs in levels of indirection from 'char [2]'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(36,21): warning C4047: '=': 'char' differs in levels of indirection from 'char [2]'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(44,12): warning C4477: 'printf' : format string '%08p' requires an argument of type 'void *', but variadic argument 1 has type 'long'
+  ASLR-Example-32.vcxproj -> D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\Debug\ASLR-Example-32.exe

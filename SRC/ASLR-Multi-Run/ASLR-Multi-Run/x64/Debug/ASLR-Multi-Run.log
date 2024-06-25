@@ -1,0 +1,6 @@
+﻿  main.c
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Multi-Run\ASLR-Multi-Run\main.c(24,11): warning C4047: 'initializing': 'void *' differs in levels of indirection from 'int'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Multi-Run\ASLR-Multi-Run\main.c(24,24): warning C4047: 'initializing': 'void *' differs in levels of indirection from 'int'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Multi-Run\ASLR-Multi-Run\main.c(24,37): warning C4047: 'initializing': 'void *' differs in levels of indirection from 'int'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Multi-Run\ASLR-Multi-Run\main.c(25,12): warning C4101: 'h_heap': unreferenced local variable
+  ASLR-Multi-Run.vcxproj -> D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Multi-Run\x64\Debug\ASLR-Multi-Run.exe

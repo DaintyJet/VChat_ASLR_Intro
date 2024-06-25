@@ -1,0 +1,16 @@
+﻿  main.c
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(43,21): warning C4047: '=': 'char' differs in levels of indirection from 'char [2]'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(48,21): warning C4047: '=': 'char' differs in levels of indirection from 'char [2]'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(52,21): warning C4047: '=': 'char' differs in levels of indirection from 'char [2]'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(60,12): warning C4477: 'printf' : format string '%08p' requires an argument of type 'void *', but variadic argument 1 has type 'long'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(68,12): warning C4477: 'printf' : format string '%08p' requires an argument of type 'void *', but variadic argument 1 has type 'long'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(23,20): warning C4047: 'initializing': 'int *' differs in levels of indirection from 'int'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(29,11): warning C4047: 'initializing': 'void *' differs in levels of indirection from 'int'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(29,24): warning C4047: 'initializing': 'void *' differs in levels of indirection from 'int'
+D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\ASLR-Example-32\main.c(29,37): warning C4047: 'initializing': 'void *' differs in levels of indirection from 'int'
+  Generating code
+  1 of 5 functions (20.0%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  ASLR-Example-32.vcxproj -> D:\Fu-Work\VChat\WinExploit-Priv\3-ASLR\SRC\ASLR-Example-32\Release\ASLR-Example-32.exe
