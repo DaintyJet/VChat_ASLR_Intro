@@ -360,7 +360,7 @@ Our code contains the following points of interest:
 
 7. You can examine the address of variables and functions between executions. 
 
-   <video controls src="Videos/EP3-1.mp4" title="Title"></video>
+   https://github.com/DaintyJet/VChat_ASLR_Intro/assets/60448620/e39897fd-313f-49a8-87cd-05c6fa049799
 
 8. Recompile make a small modification (e.x. change the `STACK_NUM` preprocessor definition) and recompile the project. Once done execute the program and observe that the address in the `.text` section *has changed* each time the process is recompiled!
 
@@ -392,7 +392,7 @@ Our code contains the following points of interest:
 
 7. You can examine the address of variables and functions between executions. 
 
-   <video controls src="Videos/EP3-2.mp4" title="Title"></video>
+   https://github.com/DaintyJet/VChat_ASLR_Intro/assets/60448620/be723e5e-a76b-4594-9580-979abe7ede07
 
 8. Recompile make a small modification (e.x. change the `STACK_NUM` preprocessor definition) and recompile the project. Once done execute the program and observe that the address in the `.text` section *has not changed*!
 
@@ -535,7 +535,7 @@ Our code contains the following points of interest:
 
 7. You can examine the address of variables and functions between executions. 
 
-   <video controls src="Videos/EP6-1.mp4" title="Title"></video>
+   https://github.com/DaintyJet/VChat_ASLR_Intro/assets/60448620/1fcbb417-6f13-4fe8-a13e-40694d89b92d
 
 8. Recompile make a small modification (e.x. change the `STACK_NUM` preprocessor definition) and recompile the project. Once done execute the program and observe that the address in the `.text` section *has changed* each time the process is recompiled!
 
@@ -568,7 +568,7 @@ Our code contains the following points of interest:
 
 7. You can examine the address of variables and functions between executions. 
 
-   <video controls src="Videos/EP6-2.mp4" title="Title"></video>
+   https://github.com/DaintyJet/VChat_ASLR_Intro/assets/60448620/8ea41137-c06d-4474-b73f-83a6c91a6fc5
 
 8. Recompile make a small modification (e.x. change the `STACK_NUM` preprocessor definition) and recompile the project. Once done execute the program and observe that the address in the `.text` section *has not changed*!
 
@@ -644,8 +644,8 @@ We will be using WinDBG to view the state of the program while it is executing. 
    <img src="Images/WD14.png">
 
 15. Re-run the program a few times, observe the addresses changing if ASLR is enabled, and staying for the most part the same if ASLR is disabled.
-   
-   <video controls src="Videos/WinDBG.mp4" title="Title"></video>
+
+   https://github.com/DaintyJet/VChat_ASLR_Intro/assets/60448620/86566d2a-0dc0-4b6f-b2ca-be2c2f4d4db4
 
 16. Re-compile the program with ASLR enabled if it was previously disabled, or re-compile it with ASLR disabled if it was previously enabled.
 Use WINDBG
