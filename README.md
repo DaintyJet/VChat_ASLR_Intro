@@ -3,19 +3,19 @@
 ---
 > "ASLR moves executable images into random locations when a system boots, making it harder for exploit code to operate predictably." - Windows
 
-Address Space Layout Randomization (ASLR) in its most basic form *randomizes* the base address of the executable image when it is loaded into memory at run-time. The Windows operating system does support additional mechanisms to increase the protections afforded by ASLR as discussed in [Methods of Enhancing ASLR](#methods-of-enhancing-aslr), however there still exist limitations in the current implementations of ASLR in Windows systems which is further discussed in [Possible attacks bypassing and weaknesses with Windows ASLR](#possible-attacks-bypassing-and-weaknesses-with-windows-aslr). As there is no runtime overhead induced by Window's implementation of ASLR, having only a limited impact on executable load times there are few reasons you would not enable ASLR on a DLL or EXE file.
+Address Space Layout Randomization (ASLR) in its most basic form *randomizes* the base address of the executable image when it is loaded into memory at run-time. The Windows operating system does support additional mechanisms to increase the protections afforded by ASLR, as discussed in [Methods of Enhancing ASLR](#methods-of-enhancing-aslr). However, there still exist limitations in the current implementations of ASLR in Windows systems which is further discussed in [Possible attacks bypassing and weaknesses with Windows ASLR](#possible-attacks-bypassing-and-weaknesses-with-windows-aslr). As there is no runtime overhead induced by Windows's implementation of ASLR, having only a limited impact on executable load times, there are few reasons you would not enable ASLR on a DLL or EXE file.
 
 ## ASLR Basics
-At high level, when ASLR is enabled on a binary in Windows the operating system relocates the base address of the loaded binary such that the starting virtual address is randomized and the loader will patch any references within the code so the modified base address is taken into account as discussed in [Window's Implementation of Relocation](#windows-implementation-of-relocation). This write-up will attempt to answer the following questions:
+At a high level, when ASLR is enabled on a binary in Windows, the operating system relocates the base address of the loaded binary such that the starting virtual address is randomized, and the loader will patch any references within the code so the modified base address is taken into account as discussed in [Window's Implementation of Relocation](#windows-implementation-of-relocation). This write-up will attempt to answer the following questions:
 
 - What in relation to the binary image is randomized (relocated to an unexpected memory location) when a process with ASLR enabled starts?
-- When do these relocations occur and what performs those relocations for each module of the process?
+- When do these relocations occur, and what performs those relocations for each module of the process?
 - How does Windows implement relocation?
 - What weaknesses exist in the Windows implementation, and how might they be exploited?
 - What enhancements exist for ASLR to overcome some of these weaknesses?
 
 ## What is randomized by ASLR
-When a binary has been loaded into memory, there are a variety of structures allocated to manage the process and it's threads in addition to various regions of memory that are allocated to contain the code, data, and runtime allocations. When you have linked a process with [`/DYNAMICBASE`](https://learn.microsoft.com/en-us/cpp/build/reference/dynamicbase-use-address-space-layout-randomization?view=msvc-170), then not only is the *Base Address* of the EXE or DLL randomized, but the addresses some of the structures contained within will also be randomized [8][14]. The structures who's addresses are randomized include the [Process Environment Block](https://learn.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-peb) (PEB) and [Thread Environment Block](https://learn.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-teb), as these structures contain information commonly used by exploits to bypass system protections and access loaded libraries; It should also be noted that the PEB will be randomized regardless of how you set the `/DYNAMICBASE` flag but this is still a form of ASLR [9]. Additionally the base addresses of the Stack and Heap are randomized which reduces the effectiveness of various attacks including those that perform [*Heap Spraying*](https://en.wikipedia.org/wiki/Heap_spraying). The starting address of the Text and Data sections will have their starting addresses randomized the first time the process is loaded and executed.
+When a binary has been loaded into memory, there are a variety of structures allocated to manage the process and it's threads in addition to various regions of memory that are allocated to contain the code, data, and runtime allocations. When you have linked a process with [`/DYNAMICBASE`](https://learn.microsoft.com/en-us/cpp/build/reference/dynamicbase-use-address-space-layout-randomization?view=msvc-170), then not only is the *Base Address* of the EXE or DLL randomized, but the addresses some of the structures contained within will also be randomized [8][14]. The structures who's addresses are randomized include the [Process Environment Block](https://learn.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-peb) (PEB) and [Thread Environment Block](https://learn.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-teb), as these structures contain information commonly used by exploits to bypass system protections and access loaded libraries; It should also be noted that the PEB will be randomized regardless of how you set the `/DYNAMICBASE` flag but this is still a form of ASLR [9]. Additionally, the base addresses of the Stack and Heap are randomized, which reduces the effectiveness of various attacks, including those that perform [*Heap Spraying*](https://en.wikipedia.org/wiki/Heap_spraying). The starting address of the Text and Data sections will have their starting addresses randomized the first time the process is loaded and executed.
 
 > [!NOTE]
 > You should be aware that EXE's and DLL's have differing levels of *Entropy* that is the number of possible locations the base address can be randomized to start at is different. This is discussed further in the [Entropy](#entropy) section.
@@ -23,37 +23,37 @@ When a binary has been loaded into memory, there are a variety of structures all
 ## When and what will handle the relocation?
 The following section will discuss the characteristics of when a file type or section will be relocated and which system process will preform the randomization.
 
-- Executables:  The *program loader* will select a randomized base address for them image when an ASLR-compatible image is being loaded into memory. At this time it will also preform the patching required for any relocations as described in [Window's Implementation of Relocation](#windows-implementation-of-relocation). It should be noted based on observations in [7] it is possible for EXEs to be loaded at the same base address when ASLR is enabled if they are executed again immediately after exiting.
-- DLL: The OS Kernel will randomize the base address of a DLL the first time it is used/loaded on the system during the current session, the base address will not be randomized again until all processes using the DLL have exited and it is freed from memory. Although it should be noted that it is likely the DLL will be loaded into the same address it previously occupied, so the best way to grantee a new address is chosen is to reboot the system [7][9].
-- Stack: The OS Kernel will randomized the base address of the stack when a thread is started if the process containing this thread is ASLR-compilable. Additionally, the starting offset within the stack may be randomized [9].
+- Executables:  The *program loader* will select a randomized base address for the image when an ASLR-compatible image is loaded into memory. At this time, it will also perform the patching required for any relocations as described in [Window's Implementation of Relocation](#windows-implementation-of-relocation). It should be noted, based on observations in [7], that it is possible for EXEs to be loaded at the same base address when ASLR is enabled if they are executed again immediately after exiting.
+- DLL: The OS Kernel will randomize the base address of a DLL the first time it is used/loaded on the system during the current session, the base address will not be randomized again until all processes using the DLL have exited and it is freed from memory. Although it should be noted that it is likely the DLL will be loaded into the same address it previously occupied, the best way to guarantee a new address is chosen is to reboot the system [7][9].
+- Stack: The OS Kernel will randomize the base address of the stack when a thread is started if the process containing this thread is ASLR-compilable. Additionally, the starting offset within the stack may be randomized [9].
 - Heap: The heap manager always randomizes the base address of a heap when it is created regardless of whether or not an image is linked with the `/DYNAMICBASE` flag or not.
 
 ## Window's Implementation of Relocation
 > "With Windows, the code is patched at run time for relocation purposes." - [Will Dormann](https://insights.sei.cmu.edu/blog/differences-between-aslr-on-windows-and-linux/)
 
-The file format used for both Win32 and Win64 systems is the Portable Executable (PE) format. Compared to the Position-Independent Executable (PIE) ELF format used in Linux which compiles the source code into instructions that are position-independent allowing them to be loaded anywhere without patching ( hence the *position-independent*). The PE file format for Windows is **position-dependent**, which means the **program loader** at **load time** will **patch the program** so that the code can execute from the particular memory location it has been moved to. 
+The file format used for both Win32 and Win64 systems is the Portable Executable (PE) format. Several differences are apparent in terms of how ASLR is handled when compared to the Position-Independent Executable (PIE) ELF format used in Linux, which compiles the source code into position-independent instructions, allowing them to be loaded anywhere without patching (hence the term *position-independent*). The PE file format for Windows is **position-dependent**, which means the **program loader** at **load time** will **patch the program** so that the code can execute from the particular memory location it has been moved to. 
 
-When an executable is being created, the linker sets a preferred base address where the executable will be mapped to in (virtual) memory when it is being loaded for execution. This address is stored in the PE header's `IMAGE_OPTIONAL_HEADER` field (For Win32 executables and DLLs, the default base address is `0x400000` [2]). If the executable needs to be relocated to a different base address, the *program loader* needs to locate where in the binary executable it should modify code and data to ensure that the program can still functioning normally. The information on locations requiring modifications is structured as a **relocation table**  stored in the `.reloc` section of a PE file. The table in the `.reloc` section is what the *program loader* uses to patch the executable while it is mapping it into memory to ensure the loaded image continues to work after it has been relocated.
+When an executable is being created, the linker sets a preferred base address where the executable will be mapped to in (virtual) memory when it is being loaded for execution. This address is stored in the PE header's `IMAGE_OPTIONAL_HEADER` field (For Win32 executables and DLLs, the default base address is `0x400000` [2]). If the executable needs to be relocated to a different base address, the *program loader* needs to locate where it should modify code and data in the binary executable to ensure that the program can still function normally. The information on locations requiring modifications is structured as a **relocation table**  stored in the `.reloc` section of a PE file. The table in the `.reloc` section is what the *program loader* uses to patch the executable while it is mapping it into memory to ensure the loaded image continues to work after it has been relocated.
 
 > [!NOTE]
 > "The `.reloc` section is a list of places in the image where the difference between the linker assumed load address and the actual load address needs to be factored in." [2]
 
-As the code within the `.text` segment is not *position-independent*, the `.text` and `.data` sections will have their base addresses relocated as large units. That is if there are two functions in the `.text` segment, the number of bytes between them (relative offset) will remain the same no mater where the `.text` segment is relocated to [7]. The same holds true for the `.rdata` or the `.data` section which would contain static or global variables, the number of bytes between the contents within (relative offsets) will remain the same [7]. As the stack, and heap are not part of the executable image and are created at load time, the compiled code does not make assumptions about their location in relation to the base address and their location in the virtual address space can be randomized with fewer restrictions and do not require patching or entries in the `.reloc` section; this also holds true for memory mapped files.
+As the code within the `.text` segment is not *position-independent*, the `.text` and `.data` sections will have their base addresses relocated as large units. That is, if there are two functions in the `.text` segment, the number of bytes between them (relative offset) will remain the same no matter where the `.text` segment is relocated to [7]. The same holds true for the `.rdata` or the `.data` section containing static or global variables, the number of bytes between the contents within (relative offsets) will remain the same [7]. As the stack and heap are not part of the executable image and are created at load time, the compiled code does not make assumptions about their location in relation to the base address, and their location in the virtual address space can be randomized with fewer restrictions and do not require patching or entries in the `.reloc` section; this also holds true for memory mapped files.
 
 <!-- 
 > [!NOTE]
 > This is why we can see a difference between the entropy observed in Top-Down allocations and Bottom-Up allocations?
 -->
 ## Entropy
-Entropy is the measure of randomness in a system, in our case the entropy involved in ASLR is related to the number of bits within an address we are able to randomize. In this case every additional bit within the address we are able to randomize, we double the number of possibilities, e.x. If we were to have 12 bits of randomness we would have `2^12` possibilities and with 13 bits of randomness we would have `2^13`.
+Entropy is the measure of randomness in a system, in our case the entropy involved in ASLR is related to the number of bits within an address we are able to randomize. In this case every additional bit within the address we can randomize, we double the number of possibilities, e.x. If we were to have 12 bits of randomness, we would have `2^12` possibilities, and with 13 bits of randomness, we would have `2^13`.
 
-The addresses for 32-bit and 64-bit processes have a differing amount of bits that can be randomized. With 32-bit EXEs there are only 8-bits that can be randomized in the virtual address, providing an *entropy* of `2^8` which means there are 256 possible addresses the EXE can be loaded at [7]. This is a trivially small number to brute force! As for Windows 32-bit DLLs the number of bits the can be randomized increases to 14, giving `2^14` possible addresses the DLL can be loaded at [8]. This is better but still only provides 16k options, which is still possible to brute force within reason.
+The addresses for 32-bit and 64-bit processes have a differing amount of bits that can be randomized. With 32-bit EXEs, there are only 8-bits that can be randomized in the virtual address, providing an *entropy* of `2^8`, which means there are 256 possible addresses the EXE can be loaded at [7]. This is a trivially small number to brute force! As for Windows 32-bit DLLs, the number of bits that can be randomized increases to 14, giving `2^14` possible addresses the DLL can be loaded at [8]. This is better but still only provides 16k options, which is still possible to brute force within reason.
 > [!NOTE]
-> The only bits that can be randomized in the 32-bit EXE are 8-bits relating to the directory page table entry, and page table offset. Specifically these are bits 16 - 23. This is because the Virtual Address is separated out into various fields, bits 0 - 11 (12-bits) provide the offset of the entry within a 4k page and cannot be randomized without breaking the program. The next 18 bits are used for page table and directory offsets (9-bits each) and the last 2 are used as a directory table selector when accessing > 4 GB of ram. Only 14 bits of the Directory and Page Table offset bit fields are able to randomized as previously mentioned. [7]
+> The only bits that can be randomized in the 32-bit EXE are 8-bits relating to the directory page table entry and page table offset. Specifically, these are bits 16 - 23. This is because the Virtual Address is separated out into various fields, bits 0 - 11 (12-bits) provide the offset of the entry within a 4k page and cannot be randomized without breaking the program. The next 18 bits are used for page table and directory offsets (9-bits each), and the last 2 are used as a directory table selector when accessing > 4 GB of RAM. Only 14 bits of the Directory and Page Table offset bit fields can randomized as previously mentioned. [7]
 >
 > <img src="Images/Dir-Select.png">
 
-With 64-bit EXEs and DLLs Windows can randomize 17-19 bits of the virtual address [7] providing a higher level of entropy making it much harder to brute force or guess the base address an image will be loaded at. Below is the the amount of entropy for images loaded at a given base address.
+With 64-bit EXEs and DLLs, Windows can randomize 17-19 bits of the virtual address [7], providing a higher level of entropy, making it much harder to brute-force or guess the base address an image will be loaded at. Below is the amount of entropy for images loaded at a given base address.
 
 Based on the Microsoft Documentation in [8] the following *entropy* is provided:
 - DLL images based above 4 GB: 19 bits of entropy (1 in 524,288 chance of guessing correctly)
@@ -64,23 +64,23 @@ Based on the Microsoft Documentation in [8] the following *entropy* is provided:
 <img src="Images/E1.png">
 
 > [!NOTE]
-> 32-Bit EXEs and DLLs have limit on their entropy as they are loaded below the 4GB threshold, however the 64-bit EXEs and DLLs can be based below the 4 GB threshold, therefore the Windows system prioritizes basing 64-bit EXEs and DLLs above the 4GB threshold so it can make use of the higher entropy provided.
+> 32-Bit EXEs and DLLs have limit on their entropy as they are loaded below the 4GB threshold. However, the 64-bit EXEs and DLLs can be based below the 4 GB threshold; therefore, the Windows system prioritizes basing 64-bit EXEs and DLLs above the 4GB threshold so it can make use of the higher entropy provided.
 
 ## Methods of Enhancing ASLR
 
 ### Randomize memory allocations (Bottom-up ASLR)
 > Randomizes relocations for virtual memory allocations. - Microsoft
 
-Bottom-up memory allocation are commonly used as the default virtual memory allocation method when searching for a free region of memory; This method starts searching from the bottom of the address space and selects the first free region of the requested size [8]. For example the [`VirtualAlloc(...)`](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc) function call allocate a region of memory in the virtual address space, and it's default method of searching is *Bottom-Up* [8]; though you can use the flag `MEM_TOP_DOWN` to perform a Top-Down allocation with this function.
+Bottom-up memory allocation is commonly used as the default virtual memory allocation method when searching for a free region of memory; This method starts searching from the bottom of the address space and selects the first free region of the requested size [8]. For example, the [`VirtualAlloc(...)`](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc) function call allocate a region of memory in the virtual address space, and its default method of searching is *Bottom-Up* [8]; though you can use the flag `MEM_TOP_DOWN` to perform a Top-Down allocation with this function.
 
-Bottom-up ASLR enables random base addresses for bottom-up allocations. This in addition to Top-Down randomization adds explicit randomness to the rebasing of the DLLs or EXEs image. This is accomplished by randomizing the address the Top-Down or Bottom-Up allocations start searching from when the image is loaded [8]. 
+Bottom-up ASLR enables random base addresses for bottom-up allocations. This, in addition to Top-Down randomization, adds explicit randomness to the rebasing of the DLLs or EXEs image. This is accomplished by randomizing the address the Top-Down or Bottom-Up allocations start searching from when the image is loaded [8]. 
 
 This is only applied to images that explicitly enabled and opt-into ASLR with the `/DYNAMICBASE` flag, this is due to compatibility reasons to prevent issues in applications which do not expect their address space layout to change randomly between executions [10]. Additionally programs that perform pointer truncation, that is storing a 64-bit pointer in a 32-bit variable (e.x. `int` or `unsigned int`) will be incompatible with the hight-entropy option in 64-bit processes [16].
 
 ![ASLR table](./Images/ASLRTable.png)
 
 <!-- > [!NOTE]
-> This feature can be applied system-wide or to individual process by opting into ASLR. -->
+> This feature can be applied system-wide or to individual processes by opting into ASLR. -->
 
 #### Enabling Bottom-Up ASLR System Wide
 
@@ -105,19 +105,19 @@ This is only applied to images that explicitly enabled and opt-into ASLR with th
    <img src="Images/EB5.png">
 
 > [!NOTE]
-> Now processes which opt-in to ASLR will also have Bottom-Up ASLR enabled.
+> Now processes that opt-in to ASLR will also have Bottom-Up ASLR enabled.
 
 ### Force randomization for images (Mandatory ASLR)
 > Force relocation of images not compiled with `/DYNAMICBASE` - Microsoft
 
-Mandatory ASLR is a system wide setting that enforces image rebasing for all DLLs and EXEs regardless of whether they are linked with the `/DYNAMICBASE` flag that specifies they are ASLR compatible [8][16]. **Notice**, this is different from ASLR-compatible relocation because mandatory ASLR will only rebase the image using a different base address than the preferred one, whereas if the `/DYNAMICBASE` linker flag was used Bottom-Up ASLR would also be applied randomizing the placement of the stack and heap within it's virtual address space [15]. It should be stressed that this is because forced ASLR will mimic the behavior observed when the system attempts to load two images at the same base address [8], meaning this rebasing is predictable and does not have any entropy [16]. If you would like to have entropy included with the Mandatory ASLR we should enabled this with Bottom-Up ASLR using a [workaround](https://msrc.microsoft.com/blog/2017/11/clarifying-the-behavior-of-mandatory-aslr/#workarounds) [10][16].
+Mandatory ASLR is a system-wide setting that enforces image rebasing for all DLLs and EXEs regardless of whether they are linked with the `/DYNAMICBASE` flag that specifies they are ASLR compatible [8][16]. **Notice**, this is different from ASLR-compatible relocation because mandatory ASLR will only rebase the image using a different base address than the preferred one, whereas if the `/DYNAMICBASE` linker flag was used Bottom-Up ASLR would also be applied randomizing the placement of the stack and heap within its virtual address space [15]. It should be stressed that this is because forced ASLR will mimic the behavior observed when the system attempts to load two images at the same base address [8], meaning this rebasing is predictable and does not have any entropy [16]. If you would like to have entropy included with the Mandatory ASLR, we should enable this with Bottom-Up ASLR using a [workaround](https://msrc.microsoft.com/blog/2017/11/clarifying-the-behavior-of-mandatory-aslr/#workarounds) [10][16].
 
 > [!IMPORTANT]
-> As we are forcing ASLR rebasing on images that do not have the `/DYNAMICBASE` flag set to signal support for ASLR there may be various compatibility issues. This can range from performance issues due to a decrease in page sharing as mentioned in [8] to unpredictable errors due to uncontrolled control flow jumps in binaries where the compiler stripped out relocation `.reloc` information or made assumptions about the base address of the image [16].
+> As we are forcing ASLR rebasing on images that do not have the `/DYNAMICBASE` flag set to signal support for ASLR there may be various compatibility issues. This can range from performance issues due to a decrease in page sharing, as mentioned in [8], to unpredictable errors due to uncontrolled control flow jumps in binaries where the compiler stripped out relocation `.reloc` information or made assumptions about the base address of the image [16].
 
 #### Enabling Mandatory ASLR
-> [!NOTE]
-> This section is for your information, you do not need to enabled Mandatory ASLR on your system!
+> [!IMPORTANT]
+> This section is for your information; you do not need to enable Mandatory ASLR on your system!
 
 1. Open your system settings.
 
@@ -131,11 +131,11 @@ Mandatory ASLR is a system wide setting that enforces image rebasing for all DLL
 
    <img src="Images/EM3.png">
 
-4. Open the *Exploit Protection* page, this is generally located at the bottom of the list.
+4. Open the *Exploit Protection* page; this is generally located at the bottom of the list.
 
    <img src="Images/EM4.png">
 
-5. Modify this setting an restart the machine.
+5. Modify this setting and restart the machine.
 
    <img src="Images/EM5.png">
 
@@ -151,7 +151,7 @@ High-entropy ASLR introduces 1 TB  of variance with 24-bits of entropy for virtu
 
 This feature must be enabled on a per-application basis for compatibility reasons. For example this may be because some 64-bit executables contain pointer-truncation issues discussed previously [8].
 
-More information of entropy can be found in the previously discussed [Entropy](#entropy) section.
+More information on entropy can be found in the previously discussed [Entropy](#entropy) section.
 #### Enabling High-Entropy ASLR System Wide
 1. Open your system settings.
 
@@ -165,7 +165,7 @@ More information of entropy can be found in the previously discussed [Entropy](#
 
    <img src="Images/EM3.png">
 
-4. Open the *Exploit Protection* page, this is generally located at the bottom of the list.
+4. Open the *Exploit Protection* page; this is generally located at the bottom of the list.
 
    <img src="Images/EM4.png">
 
@@ -175,27 +175,27 @@ More information of entropy can be found in the previously discussed [Entropy](#
 
 ## Possible attacks and weaknesses
 ### Weaknesses
-As DLLs are shared between processes, and the DLL's code will be patched when it is loaded in memory; the DLL will have the same base address for all processes that are using it. This is because, if a DLL were to have it's base address randomized each time it is loaded by a process and has it's contents patched to reflect the new base address then all the processes which previously loaded the DLL would no longer have the correct addresses mapped into their memory spaces. This means if you discover the base address of the DLL in one process, you know the base address of the DLL for all processes using it on the system [7]. This is why tools that locate where DLLs or functions are located like [arwin](https://github.com/xinwenfu/arwin) work with ASLR enabled processes.
+As DLLs are shared between processes, and the DLL's code will be patched when it is loaded in memory; the DLL will have the same base address for all processes that are using it. This is because if a DLL were to have its base address randomized each time it is loaded by a process and has its contents patched to reflect the new base address, then all the processes that previously loaded the DLL would no longer have the correct addresses mapped into their memory spaces. This means if you discover the base address of the DLL in one process, you know the base address of the DLL for all processes using it on the system [7]. This is why tools that locate where DLLs or functions are located like [arwin](https://github.com/xinwenfu/arwin) work with ASLR enabled processes.
 
 If a process restarts quickly enough, then it may re-use the same base address where it was previously loaded in memory [7]. This means ASLR may not be re-applied between executions of the process limiting the difficulty attackers wll face in exploiting the program.
 
-If a process is a 32-bit EXE the entropy of the EXE is extremely limited and if you are using a 32-bit DLL then the possible locations it can be loaded at (entropy) is also limited but not to the same degree [7][8].
+If a process is a 32-bit EXE, its entropy is extremely limited. If you are using a 32-bit DLL, then the possible locations it can be loaded at (entropy) is also limited, but not to the same degree [7][8].
 
-The `.text` and `.data` sections are relocated as units since the code is not position independent and requires relative offsets. Then attackers may use the fact the relative offsets between functions, or between data is consistent between non-ASLR and ASLR enabled processes of the executable.
+The `.text` and `.data` sections are relocated as units since the code is not position-independent and requires relative offsets. Then attackers may use the fact the relative offsets between functions, or between data is consistent between non-ASLR and ASLR enabled processes of the executable.
 
-Although it may be seen as a problem as shown in [15], Microsoft has announced in [10] that the following is intended behavior; however it still induces some vulnerabilities if you are not aware of the following. In Windows 10, if you enabled forced ASLR then [Bottom-Up ASLR](#methods-of-enhancing-aslr) is not enabled for processes not linked with the `/DYNAMICBASE` flag unlike in previous Windows versions. This is because in previous versions, enabling forced ASLR would treat all programs as though they were linked with the `/DYNAMICBASE` flag, now this is no longer the case [10].
+Although it may be seen as a problem, as shown in [15], Microsoft has announced in [10] that the following is intended behavior; however, it still induces some vulnerabilities if you are not aware of the following. In Windows 10, if you enabled forced ASLR, then [Bottom-Up ASLR](#methods-of-enhancing-aslr) is not enabled for processes not linked with the `/DYNAMICBASE` flag, unlike in previous Windows versions. This is because in previous versions, enabling forced ASLR would treat all programs as though they were linked with the `/DYNAMICBASE` flag, now this is no longer the case [10].
 
-ASLR does not protect against information leaks, if an attacker is able to leak the address of a pointer or the address of a call to a DLL function, then they have the required information to start defeating ASLR. This can be done by overwriting the null terminator of a string and coercing the program to output this information back to the attacker [11].
+ASLR does not protect against information leaks; if an attacker can leak the address of a pointer or the address of a call to a DLL function, then they have the required information to start defeating ASLR. This can be done by overwriting the null terminator of a string and coercing the program to output this information back to the attacker [11].
 ### ASLR Only Bypass
  - Address space information disclosure
-    > For example, this can occur if an attacker is able to overwrite the NUL terminator of a string and then force the application to read from the string and provide the output back to the attacker [4].  The act of reading from the string will result in adjacent memory being returned up until a NUL terminator is encountered. [2]
+    > For example, this can occur if an attacker can overwrite the NUL terminator of a string and then force the application to read from the string and provide the output back to the attacker [4].  The act of reading from the string will result in adjacent memory being returned up until a NUL terminator is encountered. [2]
 
  - Brute forcing 
     * This attack requires the target application to be capable of restarting after crashes and performing the restarts without a limit. You can limit the number of times a program restarts in Windows!
-    > Applications that may be subjected to brute force attacks (such as Windows services and Internet Explorer) generally employ a restart policy that is designed to prevent the process from automatically restarting after a certain number of crashes have occurred. It is however important to note that there are some circumstances where brute force attacks can be carried out on Windows, such as when targeting an application where the vulnerable code path is contained within a catch-all exception block. [2]
+    > Applications that may be subjected to brute force attacks (such as Windows services and Internet Explorer) generally employ a restart policy that is designed to prevent the process from automatically restarting after a certain number of crashes have occurred. It is, however, important to note that there are some circumstances where brute force attacks can be carried out on Windows, such as when targeting an application where the vulnerable code path is contained within a catch-all exception block. [2]
 
  - Partial overwrite
-    > Certain types of vulnerabilities can also make it possible to bypass ASLR using what is referred to as a partial overwrite.  This technique relies on an attacker being able to overwrite the low order bits of an address (which are not subject to randomization by ASLR) without perturbing the higher order bits (which are randomized by ASLR). [2]
+    > Certain types of vulnerabilities can also make it possible to bypass ASLR using what is referred to as a partial overwrite.  This technique relies on an attacker being able to overwrite the low-order bits of an address (which are not subject to randomization by ASLR) without perturbing the higher-order bits (which are randomized by ASLR). [2]
 
 ### ASLR with DEP Bypass
 > At this point in time there have been multiple exploits which have demonstrated that it is possible in practice to bypass the combination of DEP+ASLR in the context of certain application domains (such as browsers and third party applications). These exploits have bypassed ASLR through the use of predictable DLL mappings, address space information disclosures, or JIT spraying and have bypassed DEP through the use of return-oriented programming (or some simpler variant thereof) or JIT spraying. In many cases these exploits have relied on predictable mappings caused by DLLs that ship with third party components or by JIT compilation capabilities included in non-default browser plugins. This means that these exploits will fail if the required components are not installed. [2]
@@ -222,23 +222,17 @@ In Windows, ASLR can be enabled on a per-image basis by using the `/DYNAMICBASE`
 
    <img src="Images/EP3.png">
 
-5. If you are using a 64-bit system the `\LARGEADDRESSAWARE` and `/HIGHENTROPYVA` flags to use the entropy provided by a larger address space are enabled by default, and will be ignored for 32-bit applications. The `\LARGEADDRESSAWARE` flag can be found in the `Linker` -> `System` -> `Enable Large Addresses` setting. There is no apparent options for the `/HIGHENTROPYVA` flag, so this can be configured in the `Linker` -> `Command Line` -> `Additional Options` window.
+5. If you are using a 64-bit system, the `\LARGEADDRESSAWARE` and `/HIGHENTROPYVA` flags to use the entropy provided by a larger address space are enabled by default and will be ignored for 32-bit applications. The `\LARGEADDRESSAWARE` flag can be found in the `Linker` -> `System` -> `Enable Large Addresses` setting. There is no apparent options for the `/HIGHENTROPYVA` flag, so this can be configured in the `Linker` -> `Command Line` -> `Additional Options` window.
 
 ## Exploring Windows ASLR
-In this section we will explore the actual effects of ASLR on both 32-bit and 64-bit processes. For this, we provide a variety of programs in the [SRC](./SRC/) directory, and they are discussed individually bellow. Additionally, we use [Immunity Debugger](https://www.immunityinc.com/products/debugger/) to examine a 32-bit process, and [WinDBG](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/) to examine a 64-bit process. Before we jump into the example programs, we will look into how we can check if a process supports ASLR or not.
-<!-- 
-https://samsclass.info/127/proj/ED303.htm Seems like good inspiration 
+In this section, we will explore the actual effects of ASLR on both 32-bit and 64-bit processes. For this, we provide a variety of programs in the [SRC](./SRC/) directory, and they are discussed individually bellow. Additionally, we use [Immunity Debugger](https://www.immunityinc.com/products/debugger/) to examine a 32-bit process, and [WinDBG](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/) to examine a 64-bit process. Before we jump into the example programs, we will look into how we can check if a process supports ASLR or not.
 
-From 9, print address of Malloc, HeapAlloc and HeapCreate
-
-Print the relatve offset between two functions and two global variables.
--->
 ### Examine ASLR Support
 In order to verify whether a process has ASLR enabled or not we will use two tools, the first is the command line tool [dumpbin](https://learn.microsoft.com/en-us/cpp/build/reference/dumpbin-command-line?view=msvc-170) included as part of the Visual Studio development package, and the second being a part of the [Sysinternals](https://learn.microsoft.com/en-us/sysinternals/) suite of tools [Process Explorer](https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer).
 
 
 #### Dumpbin
-Utilizing `dumpbin` we will be able to verify whether or not a process will support ASLR when it is loaded by examining the headers in the PE file. This can be done without loading and executing the process.
+Utilizing `dumpbin`, we will be able to verify whether or not a process will support ASLR when it is loaded by examining the headers in the PE file. This can be done without loading and executing the process.
 
 1. Open a *Developer PowerShell for Visual Studio*.
 
@@ -267,7 +261,7 @@ By using Process Explorer we can see which processes running on the system suppo
 
    <img src="Images/EPE1.png">
 
-2. Right Click the Column Headers, and click *Select Column*.
+2. Right-click the Column Headers, and click *Select Column*.
 
    <img src="Images/EPE2.png">
 
@@ -275,7 +269,7 @@ By using Process Explorer we can see which processes running on the system suppo
 
    <img src="Images/EPE3.png">
 
-4. View the ASLR enabled processes.
+4. View the ASLR-enabled processes.
 
    <img src="Images/EPE4.png">
 
@@ -333,7 +327,7 @@ Our code contains the following points of interest:
         printf("%-2d: %08p %08x\n", test - 1 , (void*)s_ptr, (*s_ptr));
    ```
 > [!NOTE]
->  The line `#define INT` is use to control if debugging interrupts are included in the resulting executable at locations we would like to stop execution to examine the stack.
+>  The line `#define INT` is used to control if debugging interrupts are included in the resulting executable at locations where we would like to stop execution to examine the stack.
 #### ASLR Enabled
 1. Open the [`ASLR-Example-32`](./SRC/ASLR-Example-32/ASLR-Example-32.sln) Visual Studio Project.
 2. Open the Properties Window for the project.
@@ -397,10 +391,10 @@ Our code contains the following points of interest:
 8. Recompile make a small modification (e.x. change the `STACK_NUM` preprocessor definition) and recompile the project. Once done execute the program and observe that the address in the `.text` section *has not changed*!
 
 > [!NOTE]
-> Notice how none of the addresses are changing! This is because ALSR has been disabled and *Bottom-Up ASLR* is not going to be used so all the allocations are deterministic. The HEAP allocations are less predictable in comparison to the Stack allocations but we can see the HEAPCreate made a heap available at the same address, and for the Virtual Allocations although the addresses changed between calls we could see repeated values.
+> Notice how none of the addresses are changing! This is because ALSR has been disabled, and *Bottom-Up ASLR* is not going to be used, so all the allocations are deterministic. The HEAP allocations are less predictable in comparison to the Stack allocations, but we can see the HEAPCreate made a heap available at the same address, and for the Virtual Allocations, although the addresses changed between calls, we could see repeated values.
 
 ### Immunity Debugger
-We can use Immunity Debugger to view the state of the stack and observe the address changes (or lack thereof) between executions. Immunity Debugger can only load 32-bit executables so the later 64-bit example will use WinDBG instead.
+We can use Immunity Debugger to view the stack's state and observe the address changes (or lack thereof) between executions. However, Immunity Debugger can only load 32-bit executables, so the later 64-bit example will use WinDBG instead.
 
 1. Modify [`ASLR-Example-32`](./SRC/ASLR-Example-32/ASLR-Example-32.sln) so the line `#define INT` is un-commented.
 
@@ -415,7 +409,7 @@ We can use Immunity Debugger to view the state of the stack and observe the addr
 
    <img src="Images/ID2.png"> 
 
-5. Click *Run* to hit the first `INT 3` instruction in the program. We can examine the stack before we start modifying the initial default values.
+5. Click *Run* to execute and hit the first `INT 3` instruction in the program. We can examine the stack before we start modifying the initial default values.
 
    <img src="Images/ID3.png"> 
 
@@ -439,11 +433,11 @@ We can use Immunity Debugger to view the state of the stack and observe the addr
 
    <img src="Images/ID8.png">
 
-11. Locate the security cookie (We have not disabled it!), if present this will be above the EBP value on the stack in our program, directly after the array stored on the stack.
+11. Locate the security cookie (We have not disabled it!). If present, it will be above the EBP value on the stack in our program, directly after the array stored on the stack.
 
    <img src="Images/ID9.png">
 
-12. Click Run again, we will hit the second `INT 3` instruction in the code, and will be able to compare the program output to the information in the debugger.
+12. Click Run again. We will hit the second `INT 3` instruction in the code and be able to compare the program output to the information in the debugger.
 
    <img src="Images/ID10.png">
 
@@ -459,7 +453,7 @@ We can use Immunity Debugger to view the state of the stack and observe the addr
 16. Re-compile the program with ASLR enabled if it was previously disabled, or re-compile it with ASLR disabled if it was previously enabled.
 
 ### Example Program 2 (x86_64)
-We will be using [`ASLR-Example-64`](./SRC/ASLR-Example-64/ASLR-Example-64.sln), the only difference between this project and the last is it has been configured to compile into a 64-bit executable. The only modifications made were to the sections containing *Inline Assembly* which is not allowed in 64-bit programs. Instead we use compiler intrinsic [`__debugbreak()`](https://learn.microsoft.com/en-us/cpp/intrinsics/debugbreak?view=msvc-170) to insert the `INT 3` instruction, and use the entrypoint of `main` as the `.text` section address.
+We will be using [`ASLR-Example-64`](./SRC/ASLR-Example-64/ASLR-Example-64.sln), the only difference between this project and the last is it has been configured to compile into a 64-bit executable. The only modifications made were to the sections containing *Inline Assembly* which is not allowed in 64-bit programs. Instead, we use compiler intrinsic [`__debugbreak()`](https://learn.microsoft.com/en-us/cpp/intrinsics/debugbreak?view=msvc-170) to insert the `INT 3` instruction and use the entry-point of `main` as the `.text` section address.
 
 Our code contains the following points of interest:
 1. As we cannot use inline assembly to find the address of an instruction contained within the `.text` section. We store the address of `main` in the variable `j` instead of an arbitrary location in the `.text` segment.
@@ -537,7 +531,7 @@ Our code contains the following points of interest:
 
    https://github.com/DaintyJet/VChat_ASLR_Intro/assets/60448620/1fcbb417-6f13-4fe8-a13e-40694d89b92d
 
-8. Recompile make a small modification (e.x. change the `STACK_NUM` preprocessor definition) and recompile the project. Once done execute the program and observe that the address in the `.text` section *has changed* each time the process is recompiled!
+8. Recompile and make a small modification (e.x. change the `STACK_NUM` preprocessor definition) and recompile the project. Once done execute the program and observe that the address in the `.text` section *has changed* each time the process is recompiled!
 
 > [!NOTE]
 > Notice how the addresses for variables in the `.text`, and `.data` (related) sections remain the same between executions, however the addresses of the *STACK*, *HEAP*, or Virtual Allocations change between executions when ASLR is enabled due to the *Bottom-Up ASLR*.
@@ -573,7 +567,7 @@ Our code contains the following points of interest:
 8. Recompile make a small modification (e.x. change the `STACK_NUM` preprocessor definition) and recompile the project. Once done execute the program and observe that the address in the `.text` section *has not changed*!
 
 > [!NOTE]
-> Notice how none of the addresses are changing! This is because ALSR has been disabled and *Bottom-Up ASLR* is not going to be used so all the allocations are deterministic. The HEAP allocations are less predictable in comparison to the Stack allocations but we can see the HEAPCreate made a heap available at the same address, and for the Virtual Allocations although the addresses changed between calls we could see repeated values.
+> Notice how none of the addresses are changing! This is because ALSR has been disabled, and *Bottom-Up ASLR* is not going to be used, so all the allocations are deterministic. The HEAP allocations are less predictable in comparison to the Stack allocations, but we can see the HEAPCreate made a heap available at the same address, and for the Virtual Allocations, although the addresses changed between calls, we could see repeated values.
 ### WinDBG
 We will be using WinDBG to view the state of the program while it is executing. We are not using Immunity Debugger as it does not support 64-bit executables. 
 
@@ -607,9 +601,9 @@ We will be using WinDBG to view the state of the program while it is executing. 
 
    <img src="Images/WD6.png">
 
-   * The first 8-bytes displayed is the virtual address of the object on the stack being displayed. In the image above we have highted the address of one entry in red.
+   * The first 8-bytes displayed is the virtual address of the object on the stack being displayed. In the image above, we have highlighted the address of one entry in red.
    * The second grouping of 8-bytes is the contents at that address. In this image above we have highlighted the contents of one entry in green.
-   * The third entry is optional, and this is the name of a function or the contents at the location a pointer refers to. This has been highlighted in blue; in this case the contents of the stack that has been highlighted is the address of the `ASLR_Example_64!__scrt_common_main_seh+0x10c` where `__scrt_common_main_seh` is the name of the function this address refers to.  
+   * The third entry is optional, and this is the name of a function or the contents at the location a pointer refers to. This has been highlighted in blue; in this case, the contents of the stack that has been highlighted is the address of the `ASLR_Example_64!__scrt_common_main_seh+0x10c` where `__scrt_common_main_seh` is the name of the function this address refers to.  
 
 7. Locate the ESP *Stack Pointer* this should be the first entry printed from the command in the output. We can confirm this by looking at the address stored in the ESP register.
 
@@ -643,7 +637,7 @@ We will be using WinDBG to view the state of the program while it is executing. 
 
    <img src="Images/WD14.png">
 
-15. Re-run the program a few times, observe the addresses changing if ASLR is enabled, and staying for the most part the same if ASLR is disabled.
+15. Re-run the program a few times, and observe the addresses changing if ASLR is enabled and staying mostly the same if ASLR is disabled.
 
    https://github.com/DaintyJet/VChat_ASLR_Intro/assets/60448620/86566d2a-0dc0-4b6f-b2ca-be2c2f4d4db4
 
@@ -654,7 +648,7 @@ Use WINDBG
 This section will use the project [ASLR-Multi-Run](./SRC/ASLR-Multi-Run/ASLR-Multi-Run.sln) which has a simple powershell script [E3-Runner-Counter.ps1](./SRC/ASLR-Multi-Run/E3-Runner-Counter.ps1) that we will be using to automate some of the work. This script will run the executable we compile from the project, store it's output in a file and count the number of unique addresses contained within. 
 
 #### Modifying and Compiling the Project
-As with the previous examples we will first start with configuring the ASLR compatibility flag of the resulting executable. Then we will cover the various preprocessor definitions used to control the output of the program.
+As with the previous examples, we will start by configuring the resulting executable's ASLR compatibility flag. Then, we will cover the various preprocessor definitions used to control the program's output.
 
 
 1. Open the [ASLR-Multi-Run](./SRC/ASLR-Multi-Run/ASLR-Multi-Run.sln) project.
@@ -670,7 +664,7 @@ As with the previous examples we will first start with configuring the ASLR comp
 
    <img src="Images/MR3.png">
 
-5. Uncomment one of the preprocessor defines to control which address will be printed by the program when it is executed.
+5. Uncomment one of the preprocessor defines to control which object's address the program prints when it is executed.
    * `#define CONST_GLOBAL 1`: Print the address of a global constant that should be located in the `.rdata` section.
    * `#define GLOBAL 1`: Print the address of a global variable that should be located in the `.data` section.
    * `#define BSS 1`: Print the address of a global variable that was initially defined in the `.bss` section of a PE file.
@@ -685,7 +679,7 @@ As with the previous examples we will first start with configuring the ASLR comp
 
 #### Using the Powershell Script
 > [!IMPORTANT]
-> As this is a simple Powershell script, whe modifying the number of times it will execute the process we need to keep in mind that this may not be able to handle or run particularly fast if we were to use a very large number as our limit for iterations.
+> As this is a simple Powershell script, when modifying the number of times it will execute the process, we need to keep in mind that this may not be able to handle or run particularly fast if we were to use a very large number as our limit for iterations.
 
 
 1. Open a powershell window and navigate to the [ASLR-Multi-Run](./SRC/ASLR-Multi-Run/) directory.
@@ -712,16 +706,7 @@ As with the previous examples we will first start with configuring the ASLR comp
 
 > [!NOTE]
 > Pay close attention to the *Stack* allocations, *Malloc Heap* allocations, *Heap Create* allocations and the *Virtual Address* allocations when ASLR is enabled compared to when it has been disabled.
-<!-- dps esp esp+100
--- Print the stack
 
-String is located where `2053492053494854` right below our test variable
-
-Return will be at ` ASLR_Example_64!__scrt_common_main_seh+0x10c`
-
-The security Cookie is `'ASLR_Example_64!'string'` xor ed with the RSP value.  
-
-RBP is 0 and is not used, this is due to a compiler optimization. -->
 ## References
 [[1] Windows ISV Software Security Defenses](https://docs.microsoft.com/en-us/previous-versions/bb430720(v=msdn.10)?redirectedfrom=MSDN)
 
