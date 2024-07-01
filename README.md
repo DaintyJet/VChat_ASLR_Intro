@@ -15,7 +15,7 @@ At a high level, when ASLR is enabled on a binary in Windows, the operating syst
 - What enhancements exist for ASLR to overcome some of these weaknesses?
 
 ## What is randomized by ASLR
-When a binary has been loaded into memory, there are a variety of structures allocated to manage the process and it's threads in addition to various regions of memory that are allocated to contain the code, data, and runtime allocations. When you have linked a process with [`/DYNAMICBASE`](https://learn.microsoft.com/en-us/cpp/build/reference/dynamicbase-use-address-space-layout-randomization?view=msvc-170), then not only is the *Base Address* of the EXE or DLL randomized, but the addresses some of the structures contained within will also be randomized [8][14]. The structures who's addresses are randomized include the [Process Environment Block](https://learn.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-peb) (PEB) and [Thread Environment Block](https://learn.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-teb), as these structures contain information commonly used by exploits to bypass system protections and access loaded libraries; It should also be noted that the PEB will be randomized regardless of how you set the `/DYNAMICBASE` flag but this is still a form of ASLR [9]. Additionally, the base addresses of the Stack and Heap are randomized, which reduces the effectiveness of various attacks, including those that perform [*Heap Spraying*](https://en.wikipedia.org/wiki/Heap_spraying). The starting address of the Text and Data sections will have their starting addresses randomized the first time the process is loaded and executed.
+When a binary has been loaded into memory, there are a variety of structures allocated to manage the process and it's threads in addition to various regions of memory that are allocated to contain the code, data, and runtime allocations. When you have linked a process with [`/DYNAMICBASE`](https://learn.microsoft.com/en-us/cpp/build/reference/dynamicbase-use-address-space-layout-randomization?view=msvc-170), then not only is the *Base Address* of the EXE or DLL randomized, but the addresses some of the structures contained within will also be randomized [8][13]. The structures who's addresses are randomized include the [Process Environment Block](https://learn.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-peb) (PEB) and [Thread Environment Block](https://learn.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-teb), as these structures contain information commonly used by exploits to bypass system protections and access loaded libraries; It should also be noted that the PEB will be randomized regardless of how you set the `/DYNAMICBASE` flag but this is still a form of ASLR [9]. Additionally, the base addresses of the Stack and Heap are randomized, which reduces the effectiveness of various attacks, including those that perform [*Heap Spraying*](https://en.wikipedia.org/wiki/Heap_spraying). The starting address of the Text and Data sections will have their starting addresses randomized the first time the process is loaded and executed.
 
 > [!NOTE]
 > You should be aware that EXE's and DLL's have differing levels of *Entropy* that is the number of possible locations the base address can be randomized to start at is different. This is discussed further in the [Entropy](#entropy) section.
@@ -75,7 +75,7 @@ Bottom-up memory allocation is commonly used as the default virtual memory alloc
 
 Bottom-up ASLR enables random base addresses for bottom-up allocations. This, in addition to Top-Down randomization, adds explicit randomness to the rebasing of the DLLs or EXEs image. This is accomplished by randomizing the address the Top-Down or Bottom-Up allocations start searching from when the image is loaded [8]. 
 
-This is only applied to images that explicitly enabled and opt-into ASLR with the `/DYNAMICBASE` flag, this is due to compatibility reasons to prevent issues in applications which do not expect their address space layout to change randomly between executions [10]. Additionally programs that perform pointer truncation, that is storing a 64-bit pointer in a 32-bit variable (e.x. `int` or `unsigned int`) will be incompatible with the hight-entropy option in 64-bit processes [16].
+This is only applied to images that explicitly enabled and opt-into ASLR with the `/DYNAMICBASE` flag, this is due to compatibility reasons to prevent issues in applications which do not expect their address space layout to change randomly between executions [10]. Additionally programs that perform pointer truncation, that is storing a 64-bit pointer in a 32-bit variable (e.x. `int` or `unsigned int`) will be incompatible with the hight-entropy option in 64-bit processes [15].
 
 ![ASLR table](./Images/ASLRTable.png)
 
@@ -110,10 +110,10 @@ This is only applied to images that explicitly enabled and opt-into ASLR with th
 ### Force randomization for images (Mandatory ASLR)
 > Force relocation of images not compiled with `/DYNAMICBASE` - Microsoft
 
-Mandatory ASLR is a system-wide setting that enforces image rebasing for all DLLs and EXEs regardless of whether they are linked with the `/DYNAMICBASE` flag that specifies they are ASLR compatible [8][16]. **Notice**, this is different from ASLR-compatible relocation because mandatory ASLR will only rebase the image using a different base address than the preferred one, whereas if the `/DYNAMICBASE` linker flag was used Bottom-Up ASLR would also be applied randomizing the placement of the stack and heap within its virtual address space [15]. It should be stressed that this is because forced ASLR will mimic the behavior observed when the system attempts to load two images at the same base address [8], meaning this rebasing is predictable and does not have any entropy [16]. If you would like to have entropy included with the Mandatory ASLR, we should enable this with Bottom-Up ASLR using a [workaround](https://msrc.microsoft.com/blog/2017/11/clarifying-the-behavior-of-mandatory-aslr/#workarounds) [10][16].
+Mandatory ASLR is a system-wide setting that enforces image rebasing for all DLLs and EXEs regardless of whether they are linked with the `/DYNAMICBASE` flag that specifies they are ASLR compatible [8][15]. **Notice**, this is different from ASLR-compatible relocation because mandatory ASLR will only rebase the image using a different base address than the preferred one, whereas if the `/DYNAMICBASE` linker flag was used Bottom-Up ASLR would also be applied randomizing the placement of the stack and heap within its virtual address space [14]. It should be stressed that this is because forced ASLR will mimic the behavior observed when the system attempts to load two images at the same base address [8], meaning this rebasing is predictable and does not have any entropy [15]. If you would like to have entropy included with the Mandatory ASLR, we should enable this with Bottom-Up ASLR using a [workaround](https://msrc.microsoft.com/blog/2017/11/clarifying-the-behavior-of-mandatory-aslr/#workarounds) [10][15].
 
 > [!IMPORTANT]
-> As we are forcing ASLR rebasing on images that do not have the `/DYNAMICBASE` flag set to signal support for ASLR there may be various compatibility issues. This can range from performance issues due to a decrease in page sharing, as mentioned in [8], to unpredictable errors due to uncontrolled control flow jumps in binaries where the compiler stripped out relocation `.reloc` information or made assumptions about the base address of the image [16].
+> As we are forcing ASLR rebasing on images that do not have the `/DYNAMICBASE` flag set to signal support for ASLR there may be various compatibility issues. This can range from performance issues due to a decrease in page sharing, as mentioned in [8], to unpredictable errors due to uncontrolled control flow jumps in binaries where the compiler stripped out relocation `.reloc` information or made assumptions about the base address of the image [15].
 
 #### Enabling Mandatory ASLR
 > [!IMPORTANT]
@@ -183,7 +183,7 @@ If a process is a 32-bit EXE, its entropy is extremely limited. If you are using
 
 The `.text` and `.data` sections are relocated as units since the code is not position-independent and requires relative offsets. Then attackers may use the fact the relative offsets between functions, or between data is consistent between non-ASLR and ASLR enabled processes of the executable.
 
-Although it may be seen as a problem, as shown in [15], Microsoft has announced in [10] that the following is intended behavior; however, it still induces some vulnerabilities if you are not aware of the following. In Windows 10, if you enabled forced ASLR, then [Bottom-Up ASLR](#methods-of-enhancing-aslr) is not enabled for processes not linked with the `/DYNAMICBASE` flag, unlike in previous Windows versions. This is because in previous versions, enabling forced ASLR would treat all programs as though they were linked with the `/DYNAMICBASE` flag, now this is no longer the case [10].
+Although it may be seen as a problem, as shown in [14], Microsoft has announced in [10] that the following is intended behavior; however, it still induces some vulnerabilities if you are not aware of the following. In Windows 10, if you enabled forced ASLR, then [Bottom-Up ASLR](#methods-of-enhancing-aslr) is not enabled for processes not linked with the `/DYNAMICBASE` flag, unlike in previous Windows versions. This is because in previous versions, enabling forced ASLR would treat all programs as though they were linked with the `/DYNAMICBASE` flag, now this is no longer the case [10].
 
 ASLR does not protect against information leaks; if an attacker can leak the address of a pointer or the address of a call to a DLL function, then they have the required information to start defeating ASLR. This can be done by overwriting the null terminator of a string and coercing the program to output this information back to the attacker [11].
 ### ASLR Only Bypass
@@ -731,17 +731,15 @@ As with the previous examples, we will start by configuring the resulting execut
 
 [[11] On the effectiveness of DEP and ASLR](https://msrc-blog.microsoft.com/2010/12/08/on-the-effectiveness-of-dep-and-aslr/)
 
-[[12] Software defense: mitigating common exploitation techniques](https://msrc-blog.microsoft.com/2013/12/11/software-defense-mitigating-common-exploitation-techniques/)
+[12] Peter Vreugdenhil.  Pwn2Own 2010 Windows 7 Internet Explorer 8 Exploit.  March, 2010.
 
-[13] Peter Vreugdenhil.  Pwn2Own 2010 Windows 7 Internet Explorer 8 Exploit.  March, 2010.
+[[13] Customize exploit protection](https://learn.microsoft.com/en-us/defender-endpoint/customize-exploit-protection)
 
-[[14] Customize exploit protection](https://learn.microsoft.com/en-us/defender-endpoint/customize-exploit-protection)
+[[14] Windows 8 and later fail to properly randomize every application if system-wide mandatory ASLR is enabled via EMET or Windows Defender Exploit Guard](https://www.kb.cert.org/vuls/id/817544)
 
-[[15] Windows 8 and later fail to properly randomize every application if system-wide mandatory ASLR is enabled via EMET or Windows Defender Exploit Guard](https://www.kb.cert.org/vuls/id/817544)
+[[15] Exploit protection reference](https://learn.microsoft.com/en-us/defender-endpoint/exploit-protection-reference#randomize-memory-allocations-bottom-up-aslr)
 
-[[16] Exploit protection reference](https://learn.microsoft.com/en-us/defender-endpoint/exploit-protection-reference#randomize-memory-allocations-bottom-up-aslr)
-
-[[17] Comparing Memory Allocation Methods](https://learn.microsoft.com/en-us/windows/win32/memory/comparing-memory-allocation-methods)
+[[16] Comparing Memory Allocation Methods](https://learn.microsoft.com/en-us/windows/win32/memory/comparing-memory-allocation-methods)
 <!-- ## Additional  
 Discuss this https://learn.microsoft.com/en-us/cpp/build/reference/highentropyva-support-64-bit-aslr?view=msvc-170
 
@@ -753,5 +751,4 @@ https://web.archive.org/web/20190715102700/http://www.symantec.com/avcenter/refe
 https://nordsecurity.com/blog/binary-memory-protection-windows-os
 
 PAX on Linux implemented ASLR first -- https://grsecurity.net/PaX-presentation.pdf -->
-
 
