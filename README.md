@@ -1,5 +1,6 @@
 # Address Space Layout Randomization
-*Notice*: Originally based off notes from [llan-OuO](https://github.com/llan-OuO).
+>[!NOTE]
+> Originally based off notes from [llan-OuO](https://github.com/llan-OuO).
 ---
 > "ASLR moves executable images into random locations when a system boots, making it harder for exploit code to operate predictably." - Windows
 
