@@ -54,8 +54,8 @@ The addresses for 32-bit and 64-bit processes have a differing amount of bits th
   - bits 0 - 11 (12-bits) provide the offset of the entry within a 4k page and cannot be randomized without breaking the program.
   - The next 18 bits are used for page table and directory offsets (9-bits each), and
   - the last 2 are used as a directory table selector when accessing > 4 GB of RAM. Only 14 bits of the Directory and Page Table offset bit fields can randomized, as previously mentioned. [7]
->
-> <img src="Images/Dir-Select.png">
+
+<img src="Images/Dir-Select.png">
 
 With 64-bit EXEs and DLLs, Windows can randomize 17-19 bits of the virtual address [7], providing a higher level of entropy, making it much harder to brute-force or guess the base address an image will be loaded at. Below is the amount of entropy for images loaded at a given base address.
 
