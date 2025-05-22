@@ -45,6 +45,7 @@ As the code within the `.text` segment is not *position-independent*, the `.text
 > [!NOTE]
 > This is why we can see a difference between the entropy observed in Top-Down allocations and Bottom-Up allocations?
 -->
+
 ## Entropy
 Entropy is the measure of randomness in a system. In our case, the entropy involved in ASLR is related to the number of bits within an address we are able to randomize. For every additional bit within the address we can randomize we double the number of possibilities, e.g, If we were to have 12 bits of randomness, we would have `2^12` possibilities, and with 13 bits of randomness, we would have `2^13` possibilities.
 
@@ -75,9 +76,9 @@ Based on the Microsoft Documentation in [8] the following *entropy* is provided:
 ### Randomize memory allocations (Bottom-up ASLR)
 > Randomizes relocations for virtual memory allocations. - Microsoft
 
-Bottom-up memory allocation is commonly used as the default virtual memory allocation method when searching for a free region of memory. This method starts searching from the bottom of the address space and selects the first free region of the requested size [8]. For example, the [`VirtualAlloc(...)`](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc) function call allocate a region of memory in the virtual address space, and its default method of searching is *Bottom-Up* [8]; though you can use the flag `MEM_TOP_DOWN` to perform a Top-Down allocation with this function.
+Bottom-up memory allocation is commonly used as the default *virtual memory allocation method* when searching for a free region of memory. This method starts searching from the bottom of the address space and selects the first free region of the requested size [8]. For example, the [`VirtualAlloc(...)`](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc) function call allocate a region of memory in the virtual address space, and its default method of searching is *Bottom-Up* [8]; though you can use the flag `MEM_TOP_DOWN` to perform a Top-Down allocation with this function.
 
-Bottom-up ASLR enables random base addresses for bottom-up allocations. This, in addition to Top-Down randomization, adds explicit randomness to the rebasing of the DLLs or EXEs image. This is accomplished by randomizing the address the Top-Down or Bottom-Up allocations start searching from when the image is loaded [8].
+Bottom-up ASLR enables random base addresses for bottom-up allocations. This, in addition to Top-Down randomization, adds explicit randomness to the rebasing of the DLLs or EXEs image (?). This is accomplished by randomizing the address the Top-Down or Bottom-Up allocations start searching from when the image is loaded [8].
 
 This is only applied to images that explicitly enabled and opt-into ASLR with the `/DYNAMICBASE` flag, this is due to compatibility reasons to prevent issues in applications which do not expect their address space layout to change randomly between executions [10]. Additionally programs that perform pointer truncation, that is storing a 64-bit pointer in a 32-bit variable (e.x. `int` or `unsigned int`) will be incompatible with the hight-entropy option in 64-bit processes [15].
 
@@ -190,6 +191,7 @@ The `.text` and `.data` sections are relocated as units since the code is not po
 Although it may be seen as a problem, as shown in [14], Microsoft has announced in [10] that the following is intended behavior; however, it still induces some vulnerabilities if you are not aware of the following. In Windows 10, if you enabled forced ASLR, then [Bottom-Up ASLR](#methods-of-enhancing-aslr) is not enabled for processes not linked with the `/DYNAMICBASE` flag, unlike in previous Windows versions. This is because in previous versions, enabling forced ASLR would treat all programs as though they were linked with the `/DYNAMICBASE` flag, now this is no longer the case [10].
 
 ASLR does not protect against information leaks; if an attacker can leak the address of a pointer or the address of a call to a DLL function, then they have the required information to start defeating ASLR. This can be done by overwriting the null terminator of a string and coercing the program to output this information back to the attacker [11].
+
 ### ASLR Only Bypass
  - Address space information disclosure
     > For example, this can occur if an attacker can overwrite the NUL terminator of a string and then force the application to read from the string and provide the output back to the attacker [4].  The act of reading from the string will result in adjacent memory being returned up until a NUL terminator is encountered. [2]
@@ -200,8 +202,10 @@ ASLR does not protect against information leaks; if an attacker can leak the add
 
  - Partial overwrite:
     > Certain types of vulnerabilities can also make it possible to bypass ASLR using what is referred to as a partial overwrite.  This technique relies on an attacker being able to overwrite the low-order bits of an address (which are not subject to randomization by ASLR) without perturbing the higher-order bits (which are randomized by ASLR). [2]
+
 ### ASLR with DEP Bypass
 > At this point in time, there have been multiple exploits that have demonstrated that it is possible in practice to bypass the combination of DEP+ASLR in the context of certain application domains (such as browsers and third-party applications). These exploits have bypassed ASLR through the use of predictable DLL mappings, address space information disclosures, or JIT spraying and have bypassed DEP through the use of return-oriented programming (or some simpler variant thereof) or JIT spraying. In many cases, these exploits have relied on predictable mappings caused by DLLs that ship with third-party components or by JIT compilation capabilities included in non-default browser plugins. This means that these exploits will fail if the required components are not installed. [2]
+
 ## How to enable ASLR for Windows applications?
 > "ASLR compatibility on Windows is a link-time option." [6]
 
@@ -230,6 +234,7 @@ In this section, we will explore the actual effects of ASLR on both 32-bit and 6
 
 ### Examine ASLR Support
 In order to verify whether a process has ASLR enabled or not, we will use two tools; the first is the command line tool [dumpbin](https://learn.microsoft.com/en-us/cpp/build/reference/dumpbin-command-line?view=msvc-170) included as part of the Visual Studio development package, and the second being a part of the [Sysinternals](https://learn.microsoft.com/en-us/sysinternals/) suite of tools [Process Explorer](https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer).
+
 #### Dumpbin
 Utilizing `dumpbin`, we will be able to verify whether or not a process will support ASLR when it is loaded by examining the headers in the PE file. This can be done without loading and executing the process.
 
@@ -274,7 +279,6 @@ By using Process Explorer, we can see which processes running on the system supp
 
 ### Example Program 1 (x86)
 This first program is configured to compile into a 32-bit executable. It should be noted that there are inconsistencies between the visual placement in the C source code and the placement of values on the stack the Visual Studio C++ compiler generates for local variables; this does not affect our program as the variable we use to output the stack values to the command line is in an acceptable location.
-
 
 Our code contains the following points of interest:
 1. We use inline assembly to find the address of an instruction contained within the `.text` section. This is stored in the variable `j` and later printed to the console.
@@ -327,6 +331,7 @@ Our code contains the following points of interest:
    ```
 > [!NOTE]
 >  The line `#define INT` is used to control if debugging interrupts are included in the resulting executable at locations where we would like to stop execution to examine the stack.
+
 #### ASLR Enabled
 1. Open the [`ASLR-Example-32`](./SRC/ASLR-Example-32/ASLR-Example-32.sln) Visual Studio Project.
 2. Open the Properties Window for the project.
@@ -567,6 +572,7 @@ Our code contains the following points of interest:
 
 > [!NOTE]
 > Notice how none of the addresses are changing! This is because ALSR has been disabled, and *Bottom-Up ASLR* is not going to be used, so all the allocations are deterministic. The HEAP allocations are less predictable in comparison to the Stack allocations, but we can see the HEAPCreate made a heap available at the same address, and for the Virtual Allocations, although the addresses changed between calls, we could see repeated values.
+
 ### WinDBG
 We will be using WinDBG to view the state of the program while it is executing. We are not using Immunity Debugger as it does not support 64-bit executables.
 
